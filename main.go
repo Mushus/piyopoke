@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -33,7 +34,10 @@ func main() {
 		}
 
 		num := len(lines)
-		pokeName := lines[rand.Intn(num)]
+		var pokeName string
+		for pokeName == "" {
+			pokeName = lines[rand.Intn(num)]
+		}
 
 		HttpPost(webhookURL, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
 	} else if *tOut == "before" {
@@ -65,12 +69,17 @@ func fromFile(filePath string) ([]string, error) {
 }
 
 func HttpPost(url string, text string) error {
-	jsonStr := `{"content":"` + text + `"}`
+	jsonMap := map[string]string{"content": text}
+
+	b, err := json.Marshal(jsonMap)
+	if err != nil {
+		return err
+	}
 
 	req, err := http.NewRequest(
 		"POST",
 		url,
-		bytes.NewBuffer([]byte(jsonStr)),
+		bytes.NewBuffer(b),
 	)
 	if err != nil {
 		return err
