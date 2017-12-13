@@ -41,7 +41,7 @@ func main() {
 
 		HttpPost(webhookURL, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
 	} else if *tOut == "before" {
-		HttpPost(webhookURL, "ワンドロスタート！初めてください！ https://mushus.github.io/countdown.html")
+		HttpPost(webhookURL, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
 	} else if *tOut == "after" {
 		HttpPost(webhookURL, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
 	}
