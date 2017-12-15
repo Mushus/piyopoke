@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
 )
 
 var (
@@ -39,12 +42,48 @@ func main() {
 			pokeName = lines[rand.Intn(num)]
 		}
 
-		HttpPost(webhookURL, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
+		httpPost(webhookURL, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
 	} else if *tOut == "before" {
-		HttpPost(webhookURL, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
+		httpPost(webhookURL, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
 	} else if *tOut == "after" {
-		HttpPost(webhookURL, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
+		httpPost(webhookURL, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
+	} else if *tOut == "watch" {
+		twitterSearch(webhookURL)
 	}
+}
+
+func twitterSearch(url string) {
+	consumerKey := os.Getenv("PIYOPOKE_CONSUMER_KEY")
+	consumerSecret := os.Getenv("PIYOPOKE_CONSUMER_SECRET")
+	accessToken := os.Getenv("PIYOPOKE_ACCESS_TOKEN")
+	accessSecret := os.Getenv("PIYOPOKE_ACCESS_SECRET")
+	config := oauth1.NewConfig(consumerKey, consumerSecret)
+	token := oauth1.NewToken(accessToken, accessSecret)
+
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitter.NewClient(httpClient)
+
+	params := &twitter.StreamFilterParams{
+		Track:         []string{"#ぴよポケワンドロ"},
+		StallWarnings: twitter.Bool(true),
+	}
+
+	demux := twitter.NewSwitchDemux()
+	demux.Tweet = func(tweet *twitter.Tweet) {
+		if tweet.RetweetedStatus == nil {
+			tweetUrl := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
+			httpPost(url, tweetUrl)
+		}
+	}
+
+	stream, err := client.Streams.Filter(params)
+	if err != nil {
+		log.Fatalf("failed to connect filter stream")
+	}
+	go demux.HandleChan(stream.Messages)
+
+	time.Sleep(4 * time.Hour)
+	defer stream.Stop()
 }
 
 func fromFile(filePath string) ([]string, error) {
@@ -68,7 +107,7 @@ func fromFile(filePath string) ([]string, error) {
 	return lines, nil
 }
 
-func HttpPost(url string, text string) error {
+func httpPost(url string, text string) error {
 	jsonMap := map[string]string{"content": text}
 
 	b, err := json.Marshal(jsonMap)
