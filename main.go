@@ -70,7 +70,7 @@ func twitterSearch(url string) {
 
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		if tweet.RetweetedStatus == nil {
+		if tweet.RetweetedStatus == nil && tweet.QuotedStatus == nil {
 			tweetUrl := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
 			httpPost(url, tweetUrl)
 		}
