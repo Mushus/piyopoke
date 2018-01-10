@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dghubble/go-twitter/twitter"
@@ -34,9 +37,16 @@ func main() {
 		twitterAccessSecret:   os.Getenv("PIYOPOKE_TWITTER_ACCESS_SECRET"),
 		discordWebhook:        os.Getenv("PIYOPOKE_DISCORD_WEBHOOK"),
 		pokelistFile:          os.Getenv("PIYOPOKE_POKELIST_FILE"),
+		pokelogFile:           os.Getenv("PIYOPOKE_POKELOG_FILE"),
+		maxPokelog:            os.Getenv("PIYOPOKE_MAX_POKELOG"),
 	}
 
 	if *tOut == "odai" {
+		maxPokelog, err := strconv.Atoi(cfg.maxPokelog)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		lines, err := fromFile(cfg.pokelistFile)
 		if err != nil {
 			log.Fatal(err)
@@ -48,15 +58,32 @@ func main() {
 			rand.Int()
 		}
 
+		logs, err := fromFile(cfg.pokelogFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		num := len(lines)
 		var pokeName string
-		for pokeName == "" {
+		for pokeName == "" || indexOf(logs, pokeName) != -1 {
 			pokeName = lines[rand.Intn(num)]
 		}
 
+		logs = append(logs, pokeName)
+
+		loglen := len(logs)
+		firstIdx := loglen - maxPokelog
+		if firstIdx < 0 {
+			firstIdx = 0
+		}
+		log.Println(loglen)
+		log.Println(firstIdx)
+		log.Println(logs)
+		toFile(cfg.pokelogFile, logs[firstIdx:loglen])
+
 		httpPost(cfg.discordWebhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
 	} else if *tOut == "before" {
-		httpPost(cfg.discordWebhook, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
+		httpPost(cfg.discordWebhook, "ワンドロスタート！始めてください！")
 	} else if *tOut == "after" {
 		httpPost(cfg.discordWebhook, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
 	} else if *tOut == "watch" {
@@ -96,7 +123,7 @@ func twitterSearch(url string) {
 
 func fromFile(filePath string) ([]string, error) {
 
-	f, err := os.Open(filePath)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return []string{}, fmt.Errorf("cannot get file")
 	}
@@ -113,6 +140,11 @@ func fromFile(filePath string) ([]string, error) {
 	}
 
 	return lines, nil
+}
+
+func toFile(filePath string, lines []string) error {
+	data := []byte(strings.Join(append(lines, ""), "\n"))
+	return ioutil.WriteFile(filePath, data, 0644)
 }
 
 func httpPost(url string, text string) error {
@@ -145,6 +177,15 @@ func httpPost(url string, text string) error {
 	return err
 }
 
+func indexOf(haystack []string, needle string) int {
+	for i, target := range haystack {
+		if target == needle {
+			return i
+		}
+	}
+	return -1
+}
+
 type config struct {
 	twitterConsumerKey    string
 	twitterConsumerSecret string
@@ -152,4 +193,6 @@ type config struct {
 	twitterAccessSecret   string
 	discordWebhook        string
 	pokelistFile          string
+	pokelogFile           string
+	maxPokelog            string
 }

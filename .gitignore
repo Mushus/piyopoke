@@ -2,3 +2,4 @@ main
 .env
 vendor/
 vendor.orig/
+pokelog.txt
