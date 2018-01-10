@@ -76,9 +76,7 @@ func main() {
 		if firstIdx < 0 {
 			firstIdx = 0
 		}
-		log.Println(loglen)
-		log.Println(firstIdx)
-		log.Println(logs)
+
 		toFile(cfg.pokelogFile, logs[firstIdx:loglen])
 
 		httpPost(cfg.discordWebhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))

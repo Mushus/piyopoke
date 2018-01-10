@@ -27,19 +27,22 @@ go build main.go
 
 それぞれ
 
+ex.
 ```
-PIYOPOKE_WH=xxx /xxx/xxx/main -t odai
-PIYOPOKE_WH=xxx /xxx/xxx/main -t before
-PIYOPOKE_WH=xxx /xxx/xxx/main -t after
+/xxxx/piyopoke/main -t odai
+/xxxx/piyopoke/main -t before
+/xxxx/piyopoke/main -t after
+/xxxx/piyopoke/main -t watch
 ```
 
 ## 設定方法
 
 crontab に設定する
-```
-50 21,23 * * * PIYOPOKE_WH=xxx /xxx/xxx/main -t odai
-00 22,00 * * * PIYOPOKE_WH=xxx /xxx/xxx/main -t before
-00 23,01 * * * PIYOPOKE_WH=xxx /xxx/xxx/main -t after
-00 22 * * * PIYOPOKE_WH=xxx PIYOPOKE_CONSUMER_KEY=xxx PIYOPOKE_CONSUMER_SECRET=xxx PIYOPOKE_ACCESS_TOKEN=xxx PIYOPOKE_ACCESS_SECRET=xxx /home/mushus/piyopoke/main -t watch
 
+ex.
+```
+50 21,23 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t odai
+00 22,00 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t before
+00 23,01 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t after
+00 22 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t watch
 ```
