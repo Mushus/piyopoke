@@ -14,17 +14,27 @@ import (
 
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
+	"github.com/joho/godotenv"
 )
 
 var (
 	tOut = flag.String("t", "odai", "")
+	cfg  config
 )
 
 func main() {
 	flag.Parse()
-	webhookURL := os.Getenv("PIYOPOKE_WH")
 
-	fmt.Print(*tOut)
+	godotenv.Load()
+
+	cfg = config{
+		twitterConsumerKey:    os.Getenv("PIYOPOKE_TWITTER_CONSUMER_KEY"),
+		twitterConsumerSecret: os.Getenv("PIYOPOKE_TWITTER_CONSUMER_SECRET"),
+		twitterAccessToken:    os.Getenv("PIYOPOKE_TWITTER_ACCESS_TOKEN"),
+		twitterAccessSecret:   os.Getenv("PIYOPOKE_TWITTER_ACCESS_SECRET"),
+		discordWebhook:        os.Getenv("PIYOPOKE_DISCORD_WEBHOOK"),
+	}
+
 	if *tOut == "odai" {
 		lines, err := fromFile("pokelist.txt")
 		if err != nil {
@@ -42,13 +52,13 @@ func main() {
 			pokeName = lines[rand.Intn(num)]
 		}
 
-		httpPost(webhookURL, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
+		httpPost(cfg.discordWebhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
 	} else if *tOut == "before" {
-		httpPost(webhookURL, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
+		httpPost(cfg.discordWebhook, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
 	} else if *tOut == "after" {
-		httpPost(webhookURL, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
+		httpPost(cfg.discordWebhook, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
 	} else if *tOut == "watch" {
-		twitterSearch(webhookURL)
+		twitterSearch(cfg.discordWebhook)
 	}
 }
 
@@ -135,4 +145,12 @@ func httpPost(url string, text string) error {
 	defer resp.Body.Close()
 
 	return err
+}
+
+type config struct {
+	twitterConsumerKey    string
+	twitterConsumerSecret string
+	twitterAccessToken    string
+	twitterAccessSecret   string
+	discordWebhook        string
 }
