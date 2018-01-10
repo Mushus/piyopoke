@@ -1,2 +1,4 @@
 main
 .env
+vendor/
+vendor.orig/
