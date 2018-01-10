@@ -14,23 +14,35 @@ import (
 
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
+	"github.com/joho/godotenv"
 )
 
 var (
 	tOut = flag.String("t", "odai", "")
+	cfg  config
 )
 
 func main() {
 	flag.Parse()
-	webhookURL := os.Getenv("PIYOPOKE_WH")
 
-	fmt.Print(*tOut)
+	godotenv.Load()
+
+	cfg = config{
+		twitterConsumerKey:    os.Getenv("PIYOPOKE_TWITTER_CONSUMER_KEY"),
+		twitterConsumerSecret: os.Getenv("PIYOPOKE_TWITTER_CONSUMER_SECRET"),
+		twitterAccessToken:    os.Getenv("PIYOPOKE_TWITTER_ACCESS_TOKEN"),
+		twitterAccessSecret:   os.Getenv("PIYOPOKE_TWITTER_ACCESS_SECRET"),
+		discordWebhook:        os.Getenv("PIYOPOKE_DISCORD_WEBHOOK"),
+		pokelistFile:          os.Getenv("PIYOPOKE_POKELIST_FILE"),
+	}
+
 	if *tOut == "odai" {
-		lines, err := fromFile("pokelist.txt")
+		lines, err := fromFile(cfg.pokelistFile)
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		// 乱数のシードを保存してないので毎回作り直す
 		rand.Seed(time.Now().UnixNano())
 		for i := 0; i < 150; i++ {
 			rand.Int()
@@ -42,23 +54,19 @@ func main() {
 			pokeName = lines[rand.Intn(num)]
 		}
 
-		httpPost(webhookURL, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
+		httpPost(cfg.discordWebhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
 	} else if *tOut == "before" {
-		httpPost(webhookURL, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
+		httpPost(cfg.discordWebhook, "ワンドロスタート！始めてください！ https://mushus.github.io/countdown.html")
 	} else if *tOut == "after" {
-		httpPost(webhookURL, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
+		httpPost(cfg.discordWebhook, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
 	} else if *tOut == "watch" {
-		twitterSearch(webhookURL)
+		twitterSearch(cfg.discordWebhook)
 	}
 }
 
 func twitterSearch(url string) {
-	consumerKey := os.Getenv("PIYOPOKE_CONSUMER_KEY")
-	consumerSecret := os.Getenv("PIYOPOKE_CONSUMER_SECRET")
-	accessToken := os.Getenv("PIYOPOKE_ACCESS_TOKEN")
-	accessSecret := os.Getenv("PIYOPOKE_ACCESS_SECRET")
-	config := oauth1.NewConfig(consumerKey, consumerSecret)
-	token := oauth1.NewToken(accessToken, accessSecret)
+	config := oauth1.NewConfig(cfg.twitterConsumerKey, cfg.twitterConsumerSecret)
+	token := oauth1.NewToken(cfg.twitterAccessToken, cfg.twitterAccessSecret)
 
 	httpClient := config.Client(oauth1.NoContext, token)
 	client := twitter.NewClient(httpClient)
@@ -135,4 +143,13 @@ func httpPost(url string, text string) error {
 	defer resp.Body.Close()
 
 	return err
+}
+
+type config struct {
+	twitterConsumerKey    string
+	twitterConsumerSecret string
+	twitterAccessToken    string
+	twitterAccessSecret   string
+	discordWebhook        string
+	pokelistFile          string
 }
