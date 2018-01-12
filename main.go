@@ -36,6 +36,7 @@ func main() {
 		twitterAccessToken:    os.Getenv("PIYOPOKE_TWITTER_ACCESS_TOKEN"),
 		twitterAccessSecret:   os.Getenv("PIYOPOKE_TWITTER_ACCESS_SECRET"),
 		discordWebhook:        os.Getenv("PIYOPOKE_DISCORD_WEBHOOK"),
+		discordWebhookOtona:   os.Getenv("PIYOPOKE_DISCORD_WEBHOOK_OTONA"),
 		pokelistFile:          os.Getenv("PIYOPOKE_POKELIST_FILE"),
 		pokelogFile:           os.Getenv("PIYOPOKE_POKELOG_FILE"),
 		maxPokelog:            os.Getenv("PIYOPOKE_MAX_POKELOG"),
@@ -90,6 +91,21 @@ func main() {
 }
 
 func twitterSearch(url string) {
+	searchWords := []searchWord{
+		searchWord{
+			word:    "#ぴよポケワンドロ",
+			webhook: cfg.discordWebhook,
+		},
+		searchWord{
+			word:    "#おとなのぴよポケワンドロ",
+			webhook: cfg.discordWebhookOtona,
+		},
+	}
+
+	words := make([]string, len(searchWords))
+	for i, v := range searchWords {
+		words[i] = v.word
+	}
 	config := oauth1.NewConfig(cfg.twitterConsumerKey, cfg.twitterConsumerSecret)
 	token := oauth1.NewToken(cfg.twitterAccessToken, cfg.twitterAccessSecret)
 
@@ -97,7 +113,7 @@ func twitterSearch(url string) {
 	client := twitter.NewClient(httpClient)
 
 	params := &twitter.StreamFilterParams{
-		Track:         []string{"#ぴよポケワンドロ"},
+		Track:         words,
 		StallWarnings: twitter.Bool(true),
 	}
 
@@ -105,7 +121,11 @@ func twitterSearch(url string) {
 	demux.Tweet = func(tweet *twitter.Tweet) {
 		if tweet.RetweetedStatus == nil && tweet.QuotedStatus == nil && tweet.ExtendedEntities != nil {
 			tweetUrl := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
-			httpPost(url, tweetUrl)
+			for _, word := range searchWords {
+				if strings.Index(tweet.Text, word.word) != -1 {
+					httpPost(word.webhook, tweetUrl)
+				}
+			}
 		}
 	}
 
@@ -190,7 +210,13 @@ type config struct {
 	twitterAccessToken    string
 	twitterAccessSecret   string
 	discordWebhook        string
+	discordWebhookOtona   string
 	pokelistFile          string
 	pokelogFile           string
 	maxPokelog            string
+}
+
+type searchWord struct {
+	word    string
+	webhook string
 }
