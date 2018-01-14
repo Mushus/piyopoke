@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	tOut = flag.String("t", "odai", "")
-	cfg  config
+	tOut  = flag.String("t", "odai", "")
+	debug = flag.Bool("debug", false, "")
+	cfg   config
 )
 
 func main() {
@@ -102,10 +103,14 @@ func twitterSearch(url string) {
 		},
 	}
 
+	if *debug {
+		log.Printf("%v\n", searchWords)
+	}
 	words := make([]string, len(searchWords))
 	for i, v := range searchWords {
 		words[i] = v.word
 	}
+
 	config := oauth1.NewConfig(cfg.twitterConsumerKey, cfg.twitterConsumerSecret)
 	token := oauth1.NewToken(cfg.twitterAccessToken, cfg.twitterAccessSecret)
 
@@ -117,12 +122,21 @@ func twitterSearch(url string) {
 		StallWarnings: twitter.Bool(true),
 	}
 
+	if *debug {
+		log.Printf("start")
+	}
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
+		if *debug {
+			log.Printf("find tweet")
+		}
 		if tweet.RetweetedStatus == nil && tweet.QuotedStatus == nil && tweet.ExtendedEntities != nil {
 			tweetUrl := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
 			for _, word := range searchWords {
 				if strings.Index(tweet.Text, word.word) != -1 {
+					if *debug {
+						log.Printf("post to discord: %v, %v", word.webhook, tweetUrl)
+					}
 					httpPost(word.webhook, tweetUrl)
 				}
 			}
@@ -133,10 +147,13 @@ func twitterSearch(url string) {
 	if err != nil {
 		log.Fatalf("failed to connect filter stream")
 	}
+	defer stream.Stop()
 	go demux.HandleChan(stream.Messages)
 
 	time.Sleep(4 * time.Hour)
-	defer stream.Stop()
+	if *debug {
+		log.Printf("end watch")
+	}
 }
 
 func fromFile(filePath string) ([]string, error) {
