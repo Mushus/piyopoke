@@ -11,6 +11,12 @@ Discordで出されたお題を一時間で描く企画である！
 
 参加方法は [@kemo_nano](https://twitter.com/kemo_nano) に聞いてください
 
+## 機能
+
+* ランダムでお題出し
+* 開始、終了の時報
+* みんながtwitterに上げた画像をdiscordに集める
+
 ## winでコンパイルする時
 
 RasPI 無印だと6でいいはず。
