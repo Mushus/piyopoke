@@ -7,49 +7,46 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
+	logpkg "log"
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
-	"github.com/joho/godotenv"
 )
 
 var (
-	tOut  = flag.String("t", "odai", "")
-	debug = flag.Bool("debug", false, "")
-	cfg   config
+	tOut       = flag.String("t", "odai", "")
+	configFile = flag.String("c", "config.json", "")
+	cfg        Config
+	log        *logpkg.Logger
 )
 
 func main() {
+	log = logpkg.New(ioutil.Discard, "", 0)
+
 	flag.Parse()
 
-	godotenv.Load()
+	data, err := ioutil.ReadFile(*configFile)
+	if err != nil {
+		log.Fatal("cannot open config: %v", err)
+	}
 
-	cfg = config{
-		twitterConsumerKey:    os.Getenv("PIYOPOKE_TWITTER_CONSUMER_KEY"),
-		twitterConsumerSecret: os.Getenv("PIYOPOKE_TWITTER_CONSUMER_SECRET"),
-		twitterAccessToken:    os.Getenv("PIYOPOKE_TWITTER_ACCESS_TOKEN"),
-		twitterAccessSecret:   os.Getenv("PIYOPOKE_TWITTER_ACCESS_SECRET"),
-		discordWebhook:        os.Getenv("PIYOPOKE_DISCORD_WEBHOOK"),
-		discordWebhookOtona:   os.Getenv("PIYOPOKE_DISCORD_WEBHOOK_OTONA"),
-		pokelistFile:          os.Getenv("PIYOPOKE_POKELIST_FILE"),
-		pokelogFile:           os.Getenv("PIYOPOKE_POKELOG_FILE"),
-		maxPokelog:            os.Getenv("PIYOPOKE_MAX_POKELOG"),
+	err = json.Unmarshal(data, &cfg)
+	if err != nil {
+		log.Fatalf("invalid config format: %v", err)
+	}
+
+	if cfg.Debug {
+		log = logpkg.New(os.Stdout, "", logpkg.Ldate|logpkg.Ltime|logpkg.Lshortfile)
 	}
 
 	if *tOut == "odai" {
-		maxPokelog, err := strconv.Atoi(cfg.maxPokelog)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		lines, err := fromFile(cfg.pokelistFile)
+		log.Print(cfg)
+		lines, err := fromFile(cfg.PokelistFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -60,7 +57,8 @@ func main() {
 			rand.Int()
 		}
 
-		logs, err := fromFile(cfg.pokelogFile)
+		log.Print("load pokelist")
+		logs, err := fromFile(cfg.PokelogFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -69,50 +67,53 @@ func main() {
 		var pokeName string
 		for pokeName == "" || indexOf(logs, pokeName) != -1 {
 			pokeName = lines[rand.Intn(num)]
+			log.Printf("pokename: %v", pokeName)
 		}
 
 		logs = append(logs, pokeName)
 
 		loglen := len(logs)
-		firstIdx := loglen - maxPokelog
+		firstIdx := loglen - cfg.MaxPokelog
 		if firstIdx < 0 {
 			firstIdx = 0
 		}
 
-		toFile(cfg.pokelogFile, logs[firstIdx:loglen])
+		log.Printf("save pokelog")
+		toFile(cfg.PokelogFile, logs[firstIdx:loglen])
 
-		httpPost(cfg.discordWebhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
+		log.Printf("push discord")
+		httpPost(cfg.Discord.Webhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
 	} else if *tOut == "before" {
-		httpPost(cfg.discordWebhook, "ワンドロスタート！始めてください！")
+		httpPost(cfg.Discord.Webhook, "ワンドロスタート！始めてください！")
 	} else if *tOut == "after" {
-		httpPost(cfg.discordWebhook, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
+		httpPost(cfg.Discord.Webhook, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
 	} else if *tOut == "watch" {
-		twitterSearch(cfg.discordWebhook)
+		twitterSearch(cfg.Discord.Webhook)
 	}
 }
 
 func twitterSearch(url string) {
-	searchWords := []searchWord{
-		searchWord{
+	searchWords := []SearchWord{
+		SearchWord{
 			word:    "#ぴよポケワンドロ",
-			webhook: cfg.discordWebhook,
+			webhook: cfg.Discord.Webhook,
 		},
-		searchWord{
+		SearchWord{
 			word:    "#おとなのぴよポケワンドロ",
-			webhook: cfg.discordWebhookOtona,
+			webhook: cfg.Discord.WebhookOtona,
 		},
 	}
 
-	if *debug {
-		log.Printf("%v\n", searchWords)
-	}
+	log.Printf("%v\n", searchWords)
+
 	words := make([]string, len(searchWords))
 	for i, v := range searchWords {
 		words[i] = v.word
 	}
 
-	config := oauth1.NewConfig(cfg.twitterConsumerKey, cfg.twitterConsumerSecret)
-	token := oauth1.NewToken(cfg.twitterAccessToken, cfg.twitterAccessSecret)
+	tw := cfg.Twitter
+	config := oauth1.NewConfig(tw.ConsumerKey, tw.ConsumerSecret)
+	token := oauth1.NewToken(tw.AccessToken, tw.AccessSecret)
 
 	httpClient := config.Client(oauth1.NoContext, token)
 	client := twitter.NewClient(httpClient)
@@ -122,21 +123,16 @@ func twitterSearch(url string) {
 		StallWarnings: twitter.Bool(true),
 	}
 
-	if *debug {
-		log.Printf("start")
-	}
+	log.Printf("start")
+
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		if *debug {
-			log.Printf("find tweet")
-		}
+		log.Printf("find tweet")
 		if tweet.RetweetedStatus == nil && tweet.QuotedStatus == nil && tweet.ExtendedEntities != nil {
 			tweetUrl := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
 			for _, word := range searchWords {
 				if strings.Index(tweet.Text, word.word) != -1 {
-					if *debug {
-						log.Printf("post to discord: %v, %v", word.webhook, tweetUrl)
-					}
+					log.Printf("post to discord: %v, %v", word.webhook, tweetUrl)
 					httpPost(word.webhook, tweetUrl)
 				}
 			}
@@ -151,9 +147,7 @@ func twitterSearch(url string) {
 	go demux.HandleChan(stream.Messages)
 
 	time.Sleep(4 * time.Hour)
-	if *debug {
-		log.Printf("end watch")
-	}
+	log.Printf("end watch")
 }
 
 func fromFile(filePath string) ([]string, error) {
@@ -221,19 +215,30 @@ func indexOf(haystack []string, needle string) int {
 	return -1
 }
 
-type config struct {
-	twitterConsumerKey    string
-	twitterConsumerSecret string
-	twitterAccessToken    string
-	twitterAccessSecret   string
-	discordWebhook        string
-	discordWebhookOtona   string
-	pokelistFile          string
-	pokelogFile           string
-	maxPokelog            string
-}
+type (
+	Twitter struct {
+		ConsumerKey    string `json:"consumer_key"`
+		ConsumerSecret string `json:"consumer_secret"`
+		AccessToken    string `json:"access_token"`
+		AccessSecret   string `json:"access_secret"`
+	}
 
-type searchWord struct {
-	word    string
-	webhook string
-}
+	Discord struct {
+		Webhook      string `json:"webhook"`
+		WebhookOtona string `json:"webhook_otona"`
+	}
+
+	Config struct {
+		Twitter      Twitter `json:"twitter"`
+		Discord      Discord `json:"discord"`
+		PokelistFile string  `json:"pokelist_file"`
+		PokelogFile  string  `json:"pokelog_file"`
+		MaxPokelog   int     `json:"max_pokelog"`
+		Debug        bool    `json:"debug"`
+	}
+
+	SearchWord struct {
+		word    string
+		webhook string
+	}
+)

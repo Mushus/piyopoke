@@ -47,8 +47,8 @@ crontab に設定する
 
 ex.
 ```
-50 21,23 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t odai
-00 22,00 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t before
-00 23,01 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t after
-00 22 * * * cd /xxxx/piyopoke/ && /xxxx/piyopoke/main -t watch
+50 21,23 * * * /xxxx/piyopoke/main -t odai -c /xxxx/piyopoke/config.json
+00 22,00 * * * /xxxx/piyopoke/main -t before -c /xxxx/piyopoke/config.json
+00 23,01 * * * /xxxx/piyopoke/main -t after -c /xxxx/piyopoke/config.json
+00 22 * * * /xxxx/piyopoke/main -t watch -c /xxxx/piyopoke/config.json
 ```

@@ -1,5 +1,6 @@
 main
-.env
+.vagrant/
 vendor/
 vendor.orig/
 pokelog.txt
+config.json
