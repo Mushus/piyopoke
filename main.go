@@ -26,23 +26,31 @@ var (
 )
 
 func main() {
-	log = logpkg.New(ioutil.Discard, "", 0)
-
 	flag.Parse()
 
 	data, err := ioutil.ReadFile(*configFile)
 	if err != nil {
-		log.Fatal("cannot open config: %v", err)
+		logpkg.Fatal("cannot open config: %v", err)
 	}
 
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
-		log.Fatalf("invalid config format: %v", err)
+		logpkg.Fatalf("invalid config format: %v", err)
 	}
 
+	w := ioutil.Discard
 	if cfg.Debug {
-		log = logpkg.New(os.Stdout, "", logpkg.Ldate|logpkg.Ltime|logpkg.Lshortfile)
+		if cfg.Logfile == "" {
+			w = os.Stdin
+		} else {
+			w, err = os.OpenFile(cfg.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			if err != nil {
+				log.Fatal("falied to open log file: %v", err)
+			}
+		}
 	}
+	log = logpkg.New(w, "", logpkg.Ldate|logpkg.Ltime|logpkg.Lshortfile)
+	log.Print("start log")
 
 	if *tOut == "odai" {
 		log.Print(cfg)
@@ -233,6 +241,7 @@ type (
 		Discord      Discord `json:"discord"`
 		PokelistFile string  `json:"pokelist_file"`
 		PokelogFile  string  `json:"pokelog_file"`
+		Logfile      string  `json:"logfile"`
 		MaxPokelog   int     `json:"max_pokelog"`
 		Debug        bool    `json:"debug"`
 	}
