@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dghubble/go-twitter/twitter"
@@ -33,11 +34,13 @@ func main() {
 		logpkg.Fatal("cannot open config: %v", err)
 	}
 
+	// 設定ファイルを読み込む
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
 		logpkg.Fatalf("invalid config format: %v", err)
 	}
 
+	// デバッグ方法
 	w := ioutil.Discard
 	if cfg.Debug {
 		if cfg.Logfile == "" {
@@ -53,6 +56,7 @@ func main() {
 	log.Print("start log")
 
 	if *tOut == "odai" {
+		// お題
 		log.Print(cfg)
 		lines, err := fromFile(cfg.PokelistFile)
 		if err != nil {
@@ -90,13 +94,39 @@ func main() {
 		toFile(cfg.PokelogFile, logs[firstIdx:loglen])
 
 		log.Printf("push discord")
-		httpPost(cfg.Discord.Webhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
+
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			httpPost(cfg.Discord.Webhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
+			wg.Done()
+		}()
+		go func() {
+			tweet(fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
+			wg.Done()
+		}()
+
+		wg.Wait()
+
 	} else if *tOut == "before" {
 		httpPost(cfg.Discord.Webhook, "ワンドロスタート！始めてください！")
 	} else if *tOut == "after" {
 		httpPost(cfg.Discord.Webhook, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
 	} else if *tOut == "watch" {
 		twitterSearch(cfg.Discord.Webhook)
+	}
+}
+
+func tweet(text string) {
+	tw := cfg.Twitter
+	config := oauth1.NewConfig(tw.ConsumerKey, tw.ConsumerSecret)
+	token := oauth1.NewToken(tw.AccessToken, tw.AccessSecret)
+
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitter.NewClient(httpClient)
+	_, _, err := client.Statuses.Update(text, nil)
+	if err != nil {
+		log.Printf("failed to tweet: %v", err)
 	}
 }
 
@@ -224,6 +254,7 @@ func indexOf(haystack []string, needle string) int {
 }
 
 type (
+	// Twitterの情報
 	Twitter struct {
 		ConsumerKey    string `json:"consumer_key"`
 		ConsumerSecret string `json:"consumer_secret"`
@@ -231,11 +262,13 @@ type (
 		AccessSecret   string `json:"access_secret"`
 	}
 
+	// Discordの情報
 	Discord struct {
 		Webhook      string `json:"webhook"`
 		WebhookOtona string `json:"webhook_otona"`
 	}
 
+	// 設定
 	Config struct {
 		Twitter      Twitter `json:"twitter"`
 		Discord      Discord `json:"discord"`
