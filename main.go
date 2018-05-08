@@ -124,7 +124,7 @@ func retweet(id int64) {
 
 	httpClient := config.Client(oauth1.NoContext, token)
 	client := twitter.NewClient(httpClient)
-	_, _, err := client.Statuses.Retweets(id, nil)
+	_, _, err := client.Statuses.Retweet(id, nil)
 	if err != nil {
 		log.Printf("failed to tweet: %v", err)
 	}
@@ -184,6 +184,7 @@ func twitterSearch(url string) {
 				if strings.Index(tweet.Text, word.word) != -1 {
 					log.Printf("post to discord: %v, %v", word.webhook, tweetUrl)
 					httpPost(word.webhook, tweetUrl)
+					log.Printf("post to twitter: %v, %v", word.webhook, tweetUrl)
 					retweet(tweet.ID)
 				}
 			}

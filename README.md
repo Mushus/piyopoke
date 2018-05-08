@@ -29,6 +29,10 @@ set GOARM=6
 go build main.go
 ```
 
+```
+GOARCH=arm GOOS=linux GOARM=6 go build main.go
+```
+
 ## ラズパイで実行する時
 
 それぞれ
