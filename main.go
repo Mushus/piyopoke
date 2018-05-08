@@ -117,6 +117,18 @@ func main() {
 	}
 }
 
+func retweet(id int64) {
+	tw := cfg.Twitter
+	config := oauth1.NewConfig(tw.ConsumerKey, tw.ConsumerSecret)
+	token := oauth1.NewToken(tw.AccessToken, tw.AccessSecret)
+
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitter.NewClient(httpClient)
+	_, _, err := client.Statuses.Retweets(id, nil)
+	if err != nil {
+		log.Printf("failed to tweet: %v", err)
+	}
+}
 func tweet(text string) {
 	tw := cfg.Twitter
 	config := oauth1.NewConfig(tw.ConsumerKey, tw.ConsumerSecret)
@@ -172,6 +184,7 @@ func twitterSearch(url string) {
 				if strings.Index(tweet.Text, word.word) != -1 {
 					log.Printf("post to discord: %v, %v", word.webhook, tweetUrl)
 					httpPost(word.webhook, tweetUrl)
+					retweet(tweet.ID)
 				}
 			}
 		}
