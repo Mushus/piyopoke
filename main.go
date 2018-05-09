@@ -95,26 +95,37 @@ func main() {
 
 		log.Printf("push discord")
 
-		wg := &sync.WaitGroup{}
-		wg.Add(2)
-		go func() {
-			httpPost(cfg.Discord.Webhook, fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
-			wg.Done()
-		}()
-		go func() {
-			tweet(fmt.Sprintf("今日のお題は「%v」です。ボイスチャンネルに入ってください。", pokeName))
-			wg.Done()
-		}()
-
-		wg.Wait()
+		tw := fmt.Sprintf("間もなく開催です！今日のお題は「%v」ですー！#ぴよポケワンドロ", pokeName)
+		dc := fmt.Sprintf("今日のお題は「%v」ですー！ボイスチャンネルに入ってください。", pokeName)
+		postDefferentText(tw, dc)
 
 	} else if *tOut == "before" {
-		httpPost(cfg.Discord.Webhook, "ワンドロスタート！始めてください！")
+		post("ワンドロスタート！始めてください！")
 	} else if *tOut == "after" {
-		httpPost(cfg.Discord.Webhook, "終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
+		post("終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
 	} else if *tOut == "watch" {
 		twitterSearch(cfg.Discord.Webhook)
 	}
+}
+
+// 発言する
+func post(text string) {
+	postDefferentText(text, text)
+}
+
+// 別のポケモンに対して発言する
+func postDefferentText(twitterText string, webhookText string) {
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		httpPost(cfg.Discord.Webhook, twitterText)
+		wg.Done()
+	}()
+	go func() {
+		tweet(webhookText)
+		wg.Done()
+	}()
+	wg.Wait()
 }
 
 func retweet(id int64) {
