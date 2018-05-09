@@ -114,15 +114,15 @@ func post(text string) {
 }
 
 // 別のポケモンに対して発言する
-func postDefferentText(twitterText string, webhookText string) {
+func postDefferentText(twitterText string, discordText string) {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		httpPost(cfg.Discord.Webhook, twitterText)
+		httpPost(cfg.Discord.Webhook, discordText)
 		wg.Done()
 	}()
 	go func() {
-		tweet(webhookText)
+		tweet(twitterText)
 		wg.Done()
 	}()
 	wg.Wait()
