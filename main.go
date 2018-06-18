@@ -282,7 +282,7 @@ func indexOf(haystack []string, needle string) int {
 }
 
 type (
-	// Twitterの情報
+	// Twitter の情報
 	Twitter struct {
 		ConsumerKey    string `json:"consumer_key"`
 		ConsumerSecret string `json:"consumer_secret"`
@@ -290,13 +290,13 @@ type (
 		AccessSecret   string `json:"access_secret"`
 	}
 
-	// Discordの情報
+	// Discord の情報
 	Discord struct {
 		Webhook      string `json:"webhook"`
 		WebhookOtona string `json:"webhook_otona"`
 	}
 
-	// 設定
+	// Config 設定
 	Config struct {
 		Twitter      Twitter `json:"twitter"`
 		Discord      Discord `json:"discord"`
@@ -307,6 +307,7 @@ type (
 		Debug        bool    `json:"debug"`
 	}
 
+	// SearchWord 検索ワード
 	SearchWord struct {
 		word    string
 		webhook string
