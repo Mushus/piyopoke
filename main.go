@@ -192,11 +192,11 @@ func twitterSearch(url string) {
 	demux.Tweet = func(tweet *twitter.Tweet) {
 		log.Printf("find tweet: %v, %v", tweet.User.ScreenName, tweet.IDStr)
 		if tweet.RetweetedStatus == nil && tweet.QuotedStatus == nil && tweet.ExtendedEntities != nil {
-			tweetUrl := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
+			tweetURL := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
 			for _, word := range searchWords {
 				if strings.Index(tweet.Text, word.word) != -1 {
-					log.Printf("post to discord: %v, %v", word.webhook, tweetUrl)
-					httpPost(word.webhook, tweetUrl)
+					log.Printf("post to discord: %v, %v", word.webhook, tweetURL)
+					httpPost(word.webhook, tweetURL)
 					if word.retweet {
 						retweet(tweet.ID)
 					}
@@ -212,7 +212,7 @@ func twitterSearch(url string) {
 	defer stream.Stop()
 	go demux.HandleChan(stream.Messages)
 
-	time.Sleep(4 * time.Hour)
+	time.Sleep(2 * time.Hour)
 	log.Printf("end watch")
 }
 
