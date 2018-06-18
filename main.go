@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	logpkg "log"
 	"math/rand"
@@ -24,6 +26,7 @@ var (
 	configFile = flag.String("c", "config.json", "")
 	cfg        Config
 	log        *logpkg.Logger
+	now        = time.Now
 )
 
 func main() {
@@ -31,7 +34,7 @@ func main() {
 
 	data, err := ioutil.ReadFile(*configFile)
 	if err != nil {
-		logpkg.Fatal("cannot open config: %v", err)
+		logpkg.Fatalf("cannot open config: %v", err)
 	}
 
 	// 設定ファイルを読み込む
@@ -43,12 +46,12 @@ func main() {
 	// デバッグ方法
 	w := ioutil.Discard
 	if cfg.Debug {
-		if cfg.Logfile == "" {
+		if cfg.LogFile == "" {
 			w = os.Stdin
 		} else {
-			w, err = os.OpenFile(cfg.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			w, err = os.OpenFile(cfg.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
-				log.Fatal("falied to open log file: %v", err)
+				log.Fatalf("falied to open log file: %v", err)
 			}
 		}
 	}
@@ -57,33 +60,43 @@ func main() {
 
 	if *tOut == "odai" {
 		// お題
-		log.Print(cfg)
-		lines, err := fromFile(cfg.PokelistFile)
-		if err != nil {
-			log.Fatal(err)
+		var pokeName string
+
+		if cfg.CalenderFile != "" {
+			f, err := os.Open(cfg.CalenderFile)
+			if err == nil {
+				pokeName = findToTSV(f)
+			}
 		}
 
-		// 乱数のシードを保存してないので毎回作り直す
-		rand.Seed(time.Now().UnixNano())
-		for i := 0; i < 150; i++ {
-			rand.Int()
-		}
-
-		log.Print("load pokelist")
+		// ログファイル読み込み
 		logs, err := fromFile(cfg.PokelogFile)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		num := len(lines)
-		var pokeName string
-		for pokeName == "" || indexOf(logs, pokeName) != -1 {
-			pokeName = lines[rand.Intn(num)]
-			log.Printf("pokename: %v", pokeName)
+		// TSVから読み込めなかった場合はランダム
+		if pokeName == "" {
+			lines, err := fromFile(cfg.PokelistFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// 乱数のシードを保存してないので毎回作り直す
+			rand.Seed(time.Now().UnixNano())
+			for i := 0; i < 150; i++ {
+				rand.Int()
+			}
+
+			num := len(lines)
+			for pokeName == "" || indexOf(logs, pokeName) != -1 {
+				pokeName = lines[rand.Intn(num)]
+				log.Printf("pokename: %v", pokeName)
+			}
 		}
 
+		// ログに追加
 		logs = append(logs, pokeName)
-
 		loglen := len(logs)
 		firstIdx := loglen - cfg.MaxPokelog
 		if firstIdx < 0 {
@@ -111,6 +124,30 @@ func main() {
 // 発言する
 func post(text string) {
 	postDefferentText(text, text)
+}
+
+func findToTSV(f io.Reader) string {
+	r := csv.NewReader(f)
+	r.Comma = '\t'
+	records, err := r.ReadAll()
+	if err != nil {
+		return ""
+	}
+
+	for _, v := range records {
+		if len(v) < 2 {
+			continue
+		}
+		calenderDate := v[0]
+		today := now().Format("01/02")
+
+		if today != calenderDate {
+			continue
+		}
+		chara := v[1]
+		return strings.Trim(chara, " ")
+	}
+	return ""
 }
 
 // 別のポケモンに対して発言する
@@ -302,7 +339,8 @@ type (
 		Discord      Discord `json:"discord"`
 		PokelistFile string  `json:"pokelist_file"`
 		PokelogFile  string  `json:"pokelog_file"`
-		Logfile      string  `json:"logfile"`
+		LogFile      string  `json:"log_file"`
+		CalenderFile string  `json:"calender_file"`
 		MaxPokelog   int     `json:"max_pokelog"`
 		Debug        bool    `json:"debug"`
 	}

@@ -11,7 +11,7 @@
   },
   "pokelist_file": "./pokelist.txt",
   "pokelog_file": "./pokelog.txt",
-  "logfile": "./piyo.log",
+  "log_file": "./piyo.log",
   "max_pokelog": 7,
   "debug": true
 }
