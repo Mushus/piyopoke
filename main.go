@@ -100,9 +100,9 @@ func main() {
 		postDefferentText(tw, dc)
 
 	} else if *tOut == "before" {
-		post("ワンドロスタート！始めてください！")
+		post("ワンドロスタート！始めてください！#ぴよポケワンドロ")
 	} else if *tOut == "after" {
-		post("終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。")
+		post("終了ー！ハッシュタグ「#ぴよポケワンドロ」付けてイラストを投稿してください。#ぴよポケワンドロ")
 	} else if *tOut == "watch" {
 		twitterSearch(cfg.Discord.Webhook)
 	}
@@ -158,10 +158,12 @@ func twitterSearch(url string) {
 		SearchWord{
 			word:    "#ぴよポケワンドロ",
 			webhook: cfg.Discord.Webhook,
+			retweet: true,
 		},
 		SearchWord{
 			word:    "#おとなのぴよポケワンドロ",
 			webhook: cfg.Discord.WebhookOtona,
+			retweet: false,
 		},
 	}
 
@@ -188,15 +190,16 @@ func twitterSearch(url string) {
 
 	demux := twitter.NewSwitchDemux()
 	demux.Tweet = func(tweet *twitter.Tweet) {
-		log.Printf("find tweet")
+		log.Printf("find tweet: %v, %v", tweet.User.ScreenName, tweet.IDStr)
 		if tweet.RetweetedStatus == nil && tweet.QuotedStatus == nil && tweet.ExtendedEntities != nil {
 			tweetUrl := fmt.Sprintf("https://twitter.com/%s/status/%s", tweet.User.ScreenName, tweet.IDStr)
 			for _, word := range searchWords {
 				if strings.Index(tweet.Text, word.word) != -1 {
 					log.Printf("post to discord: %v, %v", word.webhook, tweetUrl)
 					httpPost(word.webhook, tweetUrl)
-					log.Printf("post to twitter: %v, %v", word.webhook, tweetUrl)
-					retweet(tweet.ID)
+					if word.retweet {
+						retweet(tweet.ID)
+					}
 				}
 			}
 		}
@@ -307,5 +310,6 @@ type (
 	SearchWord struct {
 		word    string
 		webhook string
+		retweet bool
 	}
 )
