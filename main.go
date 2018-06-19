@@ -62,6 +62,12 @@ func main() {
 		// お題
 		var pokeName string
 
+		// 乱数のシードを保存してないので毎回作り直す
+		rand.Seed(time.Now().UnixNano())
+		for i := 0; i < 150; i++ {
+			rand.Int()
+		}
+
 		if cfg.CalenderFile != "" {
 			f, err := os.Open(cfg.CalenderFile)
 			if err == nil {
@@ -82,16 +88,12 @@ func main() {
 				log.Fatal(err)
 			}
 
-			// 乱数のシードを保存してないので毎回作り直す
-			rand.Seed(time.Now().UnixNano())
-			for i := 0; i < 150; i++ {
-				rand.Int()
-			}
-
 			num := len(lines)
-			for pokeName == "" || indexOf(logs, pokeName) != -1 {
+			count := 0
+			for pokeName == "" || indexOf(logs, pokeName) != -1 || count < 10 {
 				pokeName = lines[rand.Intn(num)]
 				log.Printf("pokename: %v", pokeName)
+				count++
 			}
 		}
 
